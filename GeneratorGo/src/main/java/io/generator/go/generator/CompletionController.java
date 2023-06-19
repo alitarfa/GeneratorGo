@@ -2,6 +2,7 @@ package io.generator.go.generator;
 
 import com.theokanning.openai.completion.chat.ChatCompletionResult;
 import lombok.AllArgsConstructor;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -16,7 +17,9 @@ public class CompletionController {
   private final GeneratorService generatorService;
 
   @PostMapping()
-  public ChatCompletionResult compute(@RequestPart("file") MultipartFile multipartFile) {
-    return generatorService.compute(multipartFile);
+  @CrossOrigin(origins = "*")
+  public ChatCompletionResult compute(@RequestPart("cvFile") MultipartFile cvFile,
+      @RequestPart("competencyFile") MultipartFile competencyFile) {
+    return generatorService.compute(cvFile, competencyFile);
   }
 }

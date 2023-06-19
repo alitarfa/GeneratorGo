@@ -1,16 +1,14 @@
 package io.generator.go.generator;
 
+import com.theokanning.openai.OpenAiApi;
 import com.theokanning.openai.completion.chat.ChatCompletionRequest;
 import com.theokanning.openai.completion.chat.ChatCompletionResult;
 import com.theokanning.openai.completion.chat.ChatMessage;
 import com.theokanning.openai.completion.chat.ChatMessageRole;
-import com.theokanning.openai.service.OpenAiService;
 import io.generator.go.file.FileReader;
-import java.time.Duration;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -20,34 +18,42 @@ import org.springframework.web.multipart.MultipartFile;
 public class GeneratorService {
 
   private final List<FileReader> fileProcessors;
-  private static final String COMMAND = "Je veux générer un dossier de compétance pour ce cv merci de me donner un text sous format de pdf";
-  private static final String SPACER = "\n";
+  private final OpenAiApi openAiApi;
+  private static final String COMMAND_COMPETENCY = "Utilisez ce dossier de model de dossier de compétance \n";
+  private static final String COMMAND_CV = "pour créer un autre dossier de compétance pour ce CV \n";
+  private static final String COMMAND = "en format PDF \n";
   private static final String MODEL = "gpt-3.5-turbo";
 
-  public ChatCompletionResult compute(MultipartFile multipartFile) {
-    var fileContent = fileProcessors.stream()
-        .filter(fileReader -> fileReader.supports(multipartFile.getContentType()))
-        .findFirst()
-        .orElseThrow(() -> new FileException(
-            String.format("Le fichier %s n'est pas supporté", multipartFile.getContentType())))
-        .process(multipartFile);
+  public ChatCompletionResult compute(MultipartFile cvFile, MultipartFile competencyFile) {
+
+    var cvContent = getFileContentAsString(cvFile);
+    var competencyContent = getFileContentAsString(competencyFile);
 
     var request = ChatCompletionRequest.builder()
         .model(MODEL)
-        .messages(List.of(buildChatMessage(fileContent)))
+        .messages(List.of(buildChatMessage(cvContent, competencyContent)))
         .build();
 
-    var api = OpenAiService.buildApi(
-        "Ai",
-        Duration.ofMinutes(5));
-
-    return api.createChatCompletion(request).blockingGet();
+    return openAiApi.createChatCompletion(request).blockingGet();
   }
 
-  @NotNull
-  private static ChatMessage buildChatMessage(String fileContent) {
+  private String getFileContentAsString(MultipartFile multipartFile) {
+    return fileProcessors.stream()
+        .filter(fileReader -> fileReader.supports(multipartFile.getContentType()))
+        .findFirst()
+        .orElseThrow(() -> new FileException(
+            String.format("The file type %s is not supported", multipartFile.getContentType())))
+        .process(multipartFile);
+  }
+
+  private ChatMessage buildChatMessage(String cvContent, String competencyContent) {
     var chatMessage = new ChatMessage();
-    chatMessage.setContent(COMMAND + SPACER + fileContent);
+    var contentChat = COMMAND_COMPETENCY
+        + competencyContent
+        + COMMAND_CV
+        + COMMAND
+        + cvContent;
+    chatMessage.setContent(contentChat);
     chatMessage.setRole(ChatMessageRole.USER.value());
     return chatMessage;
   }
